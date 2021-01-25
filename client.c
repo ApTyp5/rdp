@@ -11,6 +11,7 @@
 
 #include "dgram.h"
 #include "debug.h"
+#include "rdpd.h"
 
 struct confirm_args {
 	int sock_fd;
@@ -110,7 +111,7 @@ void *resend_chunks(struct resend_args *args) {
 	}
 }
 
-int create_inet_socket();
+int create_timeout_socket();
 
 int sock_bind(int sock_fd, const struct sockaddr *);
 
@@ -121,12 +122,22 @@ int init_serv_addr(struct sockaddr_in *serv_addr, const char *host, size_t port)
 
 int rdp_hello(const char *host) {
 	int sock_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	struct sockaddr_in serv_addr = {
+		.sin_family = AF_UNIX,
+		.sin_port = INNER_PORT,
+		.sin_addr.s_addr = INADDR_ANY,
+	};
+
+	sendto(sock_fd, host, strlen(host), 0,
+	       (const struct sockaddr *) &serv_addr, sizeof(serv_addr));
+
+	close(sock_fd);
 }
 
 int rdp_send(const char *host, unsigned int port, const void *buf, unsigned int len) {
 	D("rdp_send", "start");
 
-	int sock_fd = create_inet_socket();
+	int sock_fd = create_timeout_socket();
 	if (sock_fd < 0) { return EXIT_FAILURE; }
 	D("rdp_send", "socket created");
 
@@ -247,7 +258,7 @@ int send_dgram(int sock_fd, struct sockaddr_in *serv_addr, struct dgram *dgram) 
 		(const struct sockaddr *) serv_addr, sizeof(*serv_addr));
 }
 
-int create_inet_socket() {
+int create_timeout_socket() {
 	return socket(AF_INET, SOCK_DGRAM, 0);
 }
 

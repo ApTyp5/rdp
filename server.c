@@ -15,7 +15,7 @@
 
 void write_chunk(char **char_user_buf, struct dgram *dgram, size_t last_chunk_size, size_t packet_total);
 
-int create_inet_socket();
+int create_timeout_socket();
 
 int sock_bind(int sock_fd, unsigned int port);
 
@@ -27,7 +27,7 @@ ssize_t rdp_recv(unsigned int port, void **user_buf, size_t **len) {
 	D("rdp_recv", "start");
 	char **char_user_buf = (char **)user_buf;
 
-	int sock_fd = create_inet_socket();
+	int sock_fd = create_timeout_socket();
 	if (sock_fd < 0) { return EXIT_FAILURE; }
 	D("rdp_recv", "socket created");
 
@@ -115,7 +115,7 @@ int receive_dgram(int sock_fd, struct dgram *dgram, struct sockaddr_in *from, un
 	         (struct sockaddr *) from, from_len);
 }
 
-int create_inet_socket() {
+int create_timeout_socket() {
 	return socket(AF_INET, SOCK_DGRAM, 0);
 }
 
