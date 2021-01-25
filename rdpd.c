@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include "rdpd.h"
 #include "debug.h"
@@ -13,8 +15,6 @@
 
 size_t fam_count = 0;
 struct record familiars[MAX_FAMILIARS];
-
-static int create_timeout_socket();
 
 int find_familiar(char *hostname);
 
@@ -28,11 +28,15 @@ _Noreturn void *outer_daemon() {
 	if (socket_fd < 0) { pthread_exit(&SOCK_ERR); }
 	D("outer_daemon", "socket created");
 
-	unsigned int from_len;
 	struct sockaddr_in addr = { 0 }, from;
+	unsigned int from_len = sizeof(from);
 	addr.sin_family = AF_INET;
-	addr.sin_port = htonl(OUTER_PORT);
+	addr.sin_port = htons(OUTER_PORT);
 	addr.sin_addr.s_addr = INADDR_ANY;
+
+	from.sin_family = AF_INET;
+	from.sin_port = htons(INNER_PORT);
+	from.sin_addr.s_addr = INADDR_ANY;
 
 	if (bind(socket_fd, (const struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		pthread_exit(&BIND_ERR);
@@ -54,14 +58,14 @@ _Noreturn void *outer_daemon() {
 
 _Noreturn void *inner_daemon() {
 	D("inner_daemon", "start");
-	int socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+	int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (socket_fd < 0) { pthread_exit(&SOCK_ERR); }
 	D("inner_daemon", "socket created");
 
 	unsigned int from_len;
 	struct sockaddr_in addr = { 0 }, from;
-	addr.sin_family = AF_UNIX;
-	addr.sin_port = htonl(INNER_PORT);
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(INNER_PORT);
 	addr.sin_addr.s_addr = INADDR_ANY;
 
 	if (bind(socket_fd, (const struct sockaddr *) &addr, sizeof(addr)) < 0) {
@@ -69,7 +73,7 @@ _Noreturn void *inner_daemon() {
 	}
 	D("inner_daemon", "socket binded");
 
-	struct record record = {};
+	struct record record = { 0 };
 
 	while (1) {
 		size_t n = recvfrom(socket_fd, record.hostname, sizeof(record.hostname), 0,
@@ -104,7 +108,7 @@ _Noreturn void *inner_daemon() {
 
 int say_hello(char *hostname) {
 	D("say_hello", "start");
-	int sock_fd = create_timeout_socket();
+	int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
 	D("say_hello", "socket created");
 	struct hostent *host = gethostbyname(hostname);
 	if (host == NULL) pthread_exit(&RESOLVE_HOST);
@@ -113,7 +117,7 @@ int say_hello(char *hostname) {
 	unsigned int addr_len;
 	struct sockaddr_in outer_addr = {};
 	bcopy((char *) host->h_addr, (char *) &outer_addr.sin_addr.s_addr, host->h_length);
-	outer_addr.sin_port = htonl(OUTER_PORT);
+	outer_addr.sin_port = htons(OUTER_PORT);
 	D("say_hello", "addr inited");
 
 
@@ -174,19 +178,4 @@ int main() {
 	pthread_join(outer_thread, NULL);
 	pthread_join(inner_thread, NULL);
 	return EXIT_SUCCESS;
-}
-
-static int create_timeout_socket() {
-	int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-	struct timeval timeout = {
-		.tv_sec = 0,
-		.tv_usec = 300000,
-	};
-
-	if (setsockopt(socket_fd, AF_INET, SO_RCVTIMEO,
-	               &timeout, sizeof(timeout)) < 0) {
-		pthread_exit(&SET_SOCK_OPT);
-	}
-
-	return socket_fd;
 }

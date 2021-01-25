@@ -8,6 +8,6 @@ int rdp_send(
 	unsigned int len
 );
 
-int rdp_hello(const char *host);
+int rdp_hello(const char *host, int with_receive);
 
 #endif //RDP_CLIENT_H

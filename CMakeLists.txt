@@ -3,8 +3,8 @@ project(rdp)
 
 add_executable(server server.c)
 add_executable(client client.c)
-add_executable(rdp rdpd.c)
+add_executable(rdpd rdpd.c)
 
 target_link_libraries(client m pthread)
 target_link_libraries(server m pthread)
-target_link_libraries(rdp m pthread)
+target_link_libraries(rdpd m pthread)
