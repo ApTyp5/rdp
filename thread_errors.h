@@ -1,0 +1,10 @@
+#ifndef RDP_THREAD_ERRORS_H
+#define RDP_THREAD_ERRORS_H
+
+int SOCK_ERR = 1;
+int BIND_ERR = 2;
+int REC_OVERFLOW = 3;
+int RESOLVE_HOST = 4;
+int SET_SOCK_OPT = 5;
+
+#endif //RDP_THREAD_ERRORS_H
