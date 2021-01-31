@@ -145,6 +145,7 @@ int rdp_hello(const char *host, int with_receive) {
 		D("rdp_hello", "record received");
 	}
 
+	D("rdp_hello", "end hello");
 	close(sock_fd);
 }
 
@@ -282,9 +283,17 @@ int sock_bind(int sock_fd, const struct sockaddr *sock_addr) {
 int main() {
 	D("client", "start");
 	rdp_hello(HOST, 0);
+	D("client", "hello ended");
 
 	FILE *f = fopen(IN_FILE, "rb");
+	if (f == NULL) {
+		perror("fopen");
+	}
+	D("client", "file opened");
+
 	fseek(f, 0, SEEK_END);
+	D("client", "fseek ended");
+
 	size_t fsize = ftell(f);
 	D("client", "fsize", "%zu\n", fsize);
 
