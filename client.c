@@ -12,6 +12,7 @@
 #include "dgram.h"
 #include "debug.h"
 #include "rdpd.h"
+#include "config.h"
 
 struct confirm_args {
 	int sock_fd;
@@ -280,9 +281,9 @@ int sock_bind(int sock_fd, const struct sockaddr *sock_addr) {
 
 int main() {
 	D("client", "start");
-	rdp_hello("localhost", 0);
+	rdp_hello(HOST, 0);
 
-	FILE *f = fopen("/home/arthur/Learning/7sem/net/coursework/rdp/server.c", "rb");
+	FILE *f = fopen(IN_FILE, "rb");
 	fseek(f, 0, SEEK_END);
 	size_t fsize = ftell(f);
 	D("client", "fsize", "%zu\n", fsize);
@@ -299,7 +300,7 @@ int main() {
 
 	size_t len = fsize;
 
-	if (rdp_send("localhost", 5000, buf, len)) {
+	if (rdp_send(HOST, PORT, buf, len)) {
 		perror("error occured");
 	}
 	return 0;
