@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
+#include <time.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <math.h>
@@ -12,6 +12,7 @@
 #include "dgram.h"
 #include "debug.h"
 #include "rdpd.h"
+#include "config.h"
 
 struct confirm_args {
 	int sock_fd;
@@ -278,11 +279,11 @@ int sock_bind(int sock_fd, const struct sockaddr *sock_addr) {
 	return bind(sock_fd, (struct sockaddr *) sock_addr, sizeof(*sock_addr));
 }
 
-int main() {
+void send_file() {
 	D("client", "start");
-	rdp_hello("localhost", 0);
+//	rdp_hello(HOST_NAME, 0);
 
-	FILE *f = fopen("/home/arthur/Learning/7sem/net/coursework/rdp/server.c", "rb");
+	FILE *f = fopen(SENT_FILE, "rb");
 	fseek(f, 0, SEEK_END);
 	size_t fsize = ftell(f);
 	D("client", "fsize", "%zu\n", fsize);
@@ -299,8 +300,38 @@ int main() {
 
 	size_t len = fsize;
 
-	if (rdp_send("localhost", 5000, buf, len)) {
+	if (rdp_send(HOST_NAME, PORT, buf, len)) {
 		perror("error occured");
 	}
+}
+
+void measure_send_file() {
+	D("client", "start");
+	rdp_hello(HOST_NAME, 0);
+
+	FILE *f = fopen(SENT_FILE, "rb");
+	fseek(f, 0, SEEK_END);
+	size_t fsize = ftell(f);
+	D("client", "fsize", "%zu\n", fsize);
+
+	fseek(f, 0, SEEK_SET);
+	char *buf = malloc(fsize + 1);
+	if (buf == 0) {
+		D("client", "bad alloc");
+	}
+	buf[fsize] = 0;
+	fread(buf, 1, fsize, f);
+	fclose(f);
+	D("client", "file closed");
+
+	size_t len = fsize;
+
+	if (rdp_send(HOST_NAME, PORT, buf, len)) {
+		perror("error occured");
+	}
+}
+
+int main() {
+	send_file();
 	return 0;
 }

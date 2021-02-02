@@ -12,6 +12,7 @@
 #include "server.h"
 #include "dgram.h"
 #include "debug.h"
+#include "config.h"
 
 void write_chunk(char **char_user_buf, struct dgram *dgram, size_t last_chunk_size, size_t packet_total);
 
@@ -131,18 +132,23 @@ int sock_bind(int sock_fd, unsigned int port) {
 	return bind(sock_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
 }
 
-int main() {
+void receive_file() {
 	char *buf = NULL;
 	size_t *len = NULL;
 
-	if (rdp_recv(5000, (void **) &buf, &len)) {
+	if (rdp_recv(PORT, (void **) &buf, &len)) {
 		perror("error occured");
 	}
+	D("receive_file", "file received", "'%s'\n", buf);
 
-	FILE *f = fopen("/home/arthur/Learning/7sem/net/coursework/rdp/out.c", "wb");
+	FILE *f = fopen(RECEIVED_FILE, "wb");
 	fwrite(buf, 1, *len, f);
 	fclose(f);
 	free(buf);
 	free(len);
+}
+
+int main() {
+	receive_file();
 	return 0;
 }
