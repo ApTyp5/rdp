@@ -96,6 +96,7 @@ ssize_t rdp_recv(unsigned int port, void **user_buf, size_t **len) {
 	}
 	D("rdp_recv", "end cycle");
 
+	free(packet_check);
 	close(sock_fd);
 }
 
