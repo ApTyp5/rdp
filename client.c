@@ -57,7 +57,7 @@ void *receive_confirmations(struct confirm_args *args) {
 		if (packet_num >= args->packet_total) {
 			exit(13);
 		}
-		D("receive_confirmations", "packet_num < args->packet_total");
+		D("receive_confirmations", "confirm:", "%d\n", packet_num);
 
 		set_packet_received(args->packet_received, args->packet_total, packet_num);
 

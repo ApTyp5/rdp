@@ -96,7 +96,11 @@ ssize_t rdp_recv(unsigned int port, void **user_buf, size_t **len) {
 			D("rdp_recv cycle", "packet confirmation sent");
 		}
 	}
-	send_last_confirmation(from_len, sock_fd, &from);
+	for (int i = 0; i < 100; i++) {
+		send_last_confirmation(from_len, sock_fd, &from);
+		usleep(1000);
+	}
+
 	D("rdp_recv", "end cycle");
 
 	free(packet_check);
