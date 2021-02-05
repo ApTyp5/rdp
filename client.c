@@ -27,10 +27,18 @@ void try_exit_thread(size_t packet_total, const char *packet_received) {
 	D("try_exit_thread", "start", "sum = %d, total = %zu\n", sum, packet_total);
 
 	if (sum == packet_total) {
-//		D("try_exit_thread", "exit");
 		pthread_exit(0);
 	}
-//	D("try_exit_thread", "continue");
+}
+
+void set_packet_received(char *packet_received, size_t packet_total, int packet_num) {
+	if (packet_num < 0) {
+		for (int i = 0; i < packet_total; i++) {
+			packet_received[i] = 1;
+		}
+	} else {
+		packet_received[packet_num] = 1;
+	}
 }
 
 void *receive_confirmations(struct confirm_args *args) {
@@ -51,7 +59,7 @@ void *receive_confirmations(struct confirm_args *args) {
 		}
 		D("receive_confirmations", "packet_num < args->packet_total");
 
-		args->packet_received[packet_num] = 1;
+		set_packet_received(args->packet_received, args->packet_total, packet_num);
 
 		D("receive_confirmations", "try exit");
 		try_exit_thread(args->packet_total, args->packet_received);

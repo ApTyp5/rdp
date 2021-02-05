@@ -24,6 +24,8 @@ int receive_dgram(int sock_fd, struct dgram *dgram, struct sockaddr_in *from, un
 
 int send_confirmation(unsigned int from_len, int sock_fd, struct dgram *dgram, struct sockaddr_in *from);
 
+int send_last_confirmation(unsigned int from_len, int sock_fd, struct sockaddr_in *from);
+
 ssize_t rdp_recv(unsigned int port, void **user_buf, size_t **len) {
 	D("rdp_recv", "start");
 	char **char_user_buf = (char **)user_buf;
@@ -94,6 +96,7 @@ ssize_t rdp_recv(unsigned int port, void **user_buf, size_t **len) {
 			D("rdp_recv cycle", "packet confirmation sent");
 		}
 	}
+	send_last_confirmation(from_len, sock_fd, &from);
 	D("rdp_recv", "end cycle");
 
 	free(packet_check);
@@ -113,6 +116,12 @@ void write_chunk(char **char_user_buf, struct dgram *dgram, size_t last_chunk_si
 int send_confirmation(unsigned int from_len, int sock_fd, struct dgram *dgram, struct sockaddr_in *from) {
 	return sendto(sock_fd, &(*dgram).packet_num, sizeof((*dgram).packet_num), 0,
 	       (const struct sockaddr *) from, from_len);
+}
+
+int send_last_confirmation(unsigned int from_len, int sock_fd, struct sockaddr_in *from) {
+	int packets = -1;
+	return sendto(sock_fd, &packets, sizeof(int), 0,
+	              (const struct sockaddr *) from, from_len);
 }
 
 int receive_dgram(int sock_fd, struct dgram *dgram, struct sockaddr_in *from, unsigned int *from_len) {
