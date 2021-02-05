@@ -5,8 +5,6 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <errno.h>
-#include <unistd.h>
 
 #include "rdpd.h"
 #include "debug.h"

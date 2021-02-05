@@ -4,7 +4,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <time.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <math.h>
@@ -67,6 +66,7 @@ struct resend_args {
 	size_t rtt;
 	size_t last_chunk_size;
 	struct sockaddr_in *serv_addr;
+	double k;
 };
 
 int send_dgram(int sock_fd, struct sockaddr_in *serv_addr, struct dgram *dgram);
@@ -93,13 +93,16 @@ int try_resend_packet(struct resend_args *args, int packet_num) {
 
 	return EXIT_SUCCESS;
 }
+int resend_num = 0;
 
 void *resend_chunks(struct resend_args *args) {
+	resend_num = 0;
 	D("resend_chunks", "start");
 
 	while (1) {
-		usleep(args->rtt * 1);
+		usleep(args->rtt * args->k);
 		try_exit_thread(args->packet_total, args->packet_received);
+		resend_num++;
 		D("resend_chunks", "still here");
 
 		for (int i = 0; i < args->packet_total; i++) {
@@ -132,7 +135,7 @@ int rdp_hello(const char *host, int with_receive) {
 		.sin_addr.s_addr = INADDR_ANY,
 	};
 	unsigned int addr_len = sizeof(serv_addr);
-	D("rdp_hello", "addr inited");
+	D("rdp_hello", "addr inited", "addr_len: %u\n", addr_len);
 
 
 	sendto(sock_fd, host, strlen(host), 0,
@@ -140,10 +143,12 @@ int rdp_hello(const char *host, int with_receive) {
 	D("rdp_hello", "hostname sent");
 
 	if (with_receive) {
+		D("rdp_hello", "start record receive");
 		recvfrom(sock_fd, &last_record, sizeof(last_record), 0,
-		         (struct sockaddr *) &serv_addr, &addr_len);
-		D("rdp_hello", "record received");
+		         (struct sockaddr *) NULL, NULL);
+		D("rdp_hello", "record received", "addr_len: %u\n", addr_len);
 	}
+	D("rdp_hello", "end record receive");
 
 	close(sock_fd);
 }
@@ -206,6 +211,7 @@ int rdp_send(const char *host, unsigned int port, const void *buf, unsigned int 
 		.buf = buf,
 		.rtt = last_record.rtt_ms,
 		.packet_received = packet_received,
+		.k = 1,
 	};
 
 	if (pthread_create(&resend_thread, NULL,
@@ -219,6 +225,96 @@ int rdp_send(const char *host, unsigned int port, const void *buf, unsigned int 
 
 		if (send_cur_dgram(sock_fd, &serv_addr, &dgram,
 		     curr_packet, packet_total, last_chunk_size, len, buf) < 0) {
+			return EXIT_FAILURE;
+		}
+		D("rdp_send", "current dgram send");
+
+		curr_packet++;
+	}
+	D("rdp_send", "curr_packet >= packet_total");
+
+	pthread_join(confirm_thread, NULL);
+	pthread_join(resend_thread, NULL);
+	D("rdp_send", "threads joined");
+
+	close(sock_fd);
+	D("rdp_send", "end");
+
+	return 0;
+}
+
+int rdp_send_k(const char *host, unsigned int port, const void *buf, unsigned int len, double k) {
+	D("rdp_send", "start");
+
+	int sock_fd = create_socket();
+	if (sock_fd < 0) { return EXIT_FAILURE; }
+	D("rdp_send", "socket created");
+
+	pthread_t confirm_thread, resend_thread;
+	struct dgram dgram = { 0 };
+
+	struct sockaddr_in serv_addr = { 0 };
+	if (init_serv_addr(&serv_addr, host, port) < 0) {
+		return EXIT_FAILURE;
+	}
+	D("rdp_send", "server address initialized");
+
+	sock_bind(sock_fd, (const struct sockaddr *) &serv_addr);
+	D("rdp_send", "socket binded");
+
+	size_t last_chunk_size = len % CHUNK_SIZE;
+	size_t packet_total = ceil(len / (double) CHUNK_SIZE);
+	D("rdp_recv", "total and last size counted");
+
+	char *packet_received = calloc(packet_total, sizeof(char));
+	if (packet_received == NULL) {
+		return EXIT_FAILURE;
+	}
+	D("rdp_send", "packet received buf allocated");
+
+	int curr_packet = 0;
+	if (send_cur_dgram(sock_fd, &serv_addr, &dgram,
+	                   curr_packet, packet_total, last_chunk_size, len, buf) < 0) {
+		return EXIT_FAILURE;
+	}
+	D("rdp_send", "1-st dgram sended");
+
+	curr_packet++;
+
+	struct confirm_args confirm_args = {
+		.packet_received = packet_received,
+		.packet_total = packet_total,
+		.sock_fd = sock_fd,
+	};
+
+	if (pthread_create(&confirm_thread, NULL,
+	                   (void *(*)(void *)) receive_confirmations, &confirm_args) != EXIT_SUCCESS) {
+		return EXIT_FAILURE;
+	}
+	D("rdp_send", "confirm thread created");
+
+	struct resend_args resend_args = {
+		.serv_addr = &serv_addr,
+		.sock_fd = sock_fd,
+		.packet_total = packet_total,
+		.last_chunk_size = last_chunk_size,
+		.buf = buf,
+		.rtt = last_record.rtt_ms,
+		.packet_received = packet_received,
+		.k = k,
+	};
+
+	if (pthread_create(&resend_thread, NULL,
+	                   (void *(*)(void *)) resend_chunks, &resend_args) != EXIT_SUCCESS) {
+		return EXIT_FAILURE;
+	}
+	D("rdp_send", "resend thread created");
+
+	while (curr_packet < packet_total) {
+		D("rdp_send", "curr_packet < packet_total");
+
+		if (send_cur_dgram(sock_fd, &serv_addr, &dgram,
+		                   curr_packet, packet_total, last_chunk_size, len, buf) < 0) {
 			return EXIT_FAILURE;
 		}
 		D("rdp_send", "current dgram send");
@@ -281,8 +377,6 @@ int sock_bind(int sock_fd, const struct sockaddr *sock_addr) {
 
 void send_file() {
 	D("client", "start");
-//	rdp_hello(HOST_NAME, 0);
-
 	FILE *f = fopen(SENT_FILE, "rb");
 	fseek(f, 0, SEEK_END);
 	size_t fsize = ftell(f);
@@ -303,6 +397,33 @@ void send_file() {
 	if (rdp_send(HOST_NAME, PORT, buf, len)) {
 		perror("error occured");
 	}
+}
+
+void k_measure(double k) {
+	D("client", "start");
+	FILE *f = fopen(SENT_FILE, "rb");
+	fseek(f, 0, SEEK_END);
+	size_t fsize = ftell(f);
+	D("client", "fsize", "%zu\n", fsize);
+
+	fseek(f, 0, SEEK_SET);
+	char *buf = malloc(fsize + 1);
+	if (buf == 0) {
+		D("client", "bad alloc");
+	}
+	buf[fsize] = 0;
+	fread(buf, 1, fsize, f);
+	fclose(f);
+	D("client", "file closed");
+
+	size_t len = fsize;
+	time_t start = clock();
+	if (rdp_send_k(HOST_NAME, PORT, buf, len, k)) {
+		perror("error occured");
+	}
+	time_t end = clock();
+
+	printf("k = %.2f, num = %d, time = %f\n", k, resend_num, ((double)end - start)/CLOCKS_PER_SEC);
 }
 
 void measure_send_file() {
@@ -331,7 +452,12 @@ void measure_send_file() {
 	}
 }
 
-int main() {
-	send_file();
+int main(int argc, char **argv) {
+	if (argc != 2) exit(-1);
+	double k = atof(argv[1]);
+
+	rdp_hello("localhost", 0);
+
+	k_measure(k);
 	return 0;
 }

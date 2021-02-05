@@ -139,7 +139,7 @@ void receive_file() {
 	if (rdp_recv(PORT, (void **) &buf, &len)) {
 		perror("error occured");
 	}
-	D("receive_file", "file received", "'%s'\n", buf);
+	D("receive_file", "file received");
 
 	FILE *f = fopen(RECEIVED_FILE, "wb");
 	fwrite(buf, 1, *len, f);
