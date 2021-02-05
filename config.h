@@ -7,5 +7,6 @@
 #define RECEIVED_FILE DIR "out.pdf"
 #define HOST_NAME "34.71.125.234"
 #define PORT    5000
+#define TCP_PORT        6023
 
 #endif //RDP_CONFIG_H

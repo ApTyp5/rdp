@@ -54,7 +54,7 @@ void *receive_confirmations(struct confirm_args *args) {
 		}
 		D("receive_confirmations", "confirmation received");
 
-		if (packet_num >= args->packet_total) {
+		if (packet_num >= (int)args->packet_total) {
 			exit(13);
 		}
 		D("receive_confirmations", "confirm:", "%d\n", packet_num);
@@ -406,6 +406,8 @@ void send_file() {
 
 void k_measure(double k) {
 	D("client", "start");
+	fprintf( stderr, "start send");
+
 	FILE *f = fopen(SENT_FILE, "rb");
 	fseek(f, 0, SEEK_END);
 	rdp_hello("localhost", 0);
@@ -427,9 +429,12 @@ void k_measure(double k) {
 	if (rdp_send_k(HOST_NAME, PORT, buf, len, k)) {
 		perror("error occured");
 	}
+	fprintf(stderr, "end send");
 	time_t end = clock();
 
-	printf("k = %.2f, num = %d, time = %f\n", k, resend_num, ((double)end - start)/CLOCKS_PER_SEC);
+	FILE *a = fopen("/home/arthur/Learning/7sem/net/coursework/rdp/cmake-build-debug/stats.txt", "a");
+	fprintf(a, "k = %.2f,\tnum = %d,\ttime = %f\n", k, resend_num, ((double)end - start)/CLOCKS_PER_SEC);
+	fclose(a);
 }
 
 void measure_send_file() {
@@ -463,5 +468,6 @@ int main(int argc, char **argv) {
 	double k = atof(argv[1]);
 
 	k_measure(k);
+	printf("END");
 	return 0;
 }
