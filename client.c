@@ -403,6 +403,7 @@ void k_measure(double k) {
 	D("client", "start");
 	FILE *f = fopen(SENT_FILE, "rb");
 	fseek(f, 0, SEEK_END);
+	rdp_hello("localhost", 0);
 	size_t fsize = ftell(f);
 	D("client", "fsize", "%zu\n", fsize);
 
@@ -455,8 +456,6 @@ void measure_send_file() {
 int main(int argc, char **argv) {
 	if (argc != 2) exit(-1);
 	double k = atof(argv[1]);
-
-	rdp_hello("localhost", 0);
 
 	k_measure(k);
 	return 0;

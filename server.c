@@ -142,6 +142,9 @@ void receive_file() {
 	D("receive_file", "file received");
 
 	FILE *f = fopen(RECEIVED_FILE, "wb");
+	if (f == NULL) {
+		perror("fopen file error");
+	}
 	fwrite(buf, 1, *len, f);
 	fclose(f);
 	free(buf);
