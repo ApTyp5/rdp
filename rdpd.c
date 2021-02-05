@@ -96,7 +96,7 @@ _Noreturn void *inner_daemon() {
 			}
 		}
 		if (fill_record(idx, &record) < 0) { pthread_exit(&REC_OVERFLOW); }
-		D("inner_daemon", "successful fill record");
+		D("inner_daemon", "successful fill record", "%s:%zu\n", record.hostname, record.rtt_ms);
 
 		sendto(socket_fd, &record, sizeof(record), 0,
 		       (const struct sockaddr *) &from, from_len);
@@ -141,6 +141,9 @@ int say_hello(char *hostname) {
 	familiars[fam_count].rtt_ms = floor(((double) stop.tv_sec - start.tv_sec) * 1e+3 +
 		(double)(stop.tv_nsec - start.tv_nsec) * 1e-6);
 	D("say_hello", "data copied");
+	if (familiars[fam_count].rtt_ms < 1e-6) {
+		familiars[fam_count].rtt_ms = 20.0;
+	}
 
 	return EXIT_SUCCESS;
 }

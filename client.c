@@ -20,11 +20,11 @@ struct confirm_args {
 };
 
 void try_exit_thread(size_t packet_total, const char *packet_received) {
-//	D("try_exit_thread", "start");
 	int sum = 0;
 	for (int i = 0; i < packet_total; i++) {
 		sum += packet_received[i];
 	}
+	D("try_exit_thread", "start", "sum = %d, total = %zu\n", sum, packet_total);
 
 	if (sum == packet_total) {
 //		D("try_exit_thread", "exit");
@@ -72,7 +72,6 @@ struct resend_args {
 int send_dgram(int sock_fd, struct sockaddr_in *serv_addr, struct dgram *dgram);
 
 int try_resend_packet(struct resend_args *args, int packet_num) {
-	D("try_resend_packet", "start", "args->packet_received[packet_num] = %d\n", args->packet_received[packet_num]);
 
 	if (!args->packet_received[packet_num]) {
 		struct dgram dgram = {
@@ -100,17 +99,15 @@ void *resend_chunks(struct resend_args *args) {
 	D("resend_chunks", "start");
 
 	while (1) {
-		usleep(args->rtt * args->k);
+		usleep(((args->rtt + 20.0) * args->k) * 1000);
 		try_exit_thread(args->packet_total, args->packet_received);
 		resend_num++;
 		D("resend_chunks", "still here");
 
 		for (int i = 0; i < args->packet_total; i++) {
-			D("resend_chunks", "try resend packet");
 			if (try_resend_packet(args, i) < 0) {
 				exit(18);
 			}
-			D("resend_chunks", "good package receiving");
 		}
 	}
 }
